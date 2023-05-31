@@ -6,13 +6,13 @@
 
 const int lightPin = 35;  // 조도센서가 연결된 핀 번호
 
-const char* ssid = "NEXT_8004N";      // Wi-Fi 네트워크 이름
-const char* password = "jmj!079132";  // Wi-Fi 비밀번호
+const char* ssid = "";      // Wi-Fi 네트워크 이름
+const char* password = "";  // Wi-Fi 비밀번호
 
-const char* user_id = "jmj6561";
-const char* user_pw = "6561";
+const char* user_id = "";
+const char* user_pw = "";
 
-const char* serverUrl = "http://192.168.1.134:8080/api/authenticate";    // 서버 URL
+const char* serverUrl = "http://localhost:8080/api/authenticate";    // 서버 URL
 
 String Token = ""; // 전역 변수로 토큰 선언
 
@@ -154,7 +154,7 @@ float lightIntensity, bool status, String date) {
   while(1)
   {
     // POST 요청 설정
-  http.begin("http://192.168.1.134:8080/api/post-sensor-data");
+  http.begin("http://localhost:8080/api/post-sensor-data");
   http.addHeader("Content-Type", "application/json");
   http.addHeader("Authorization", "Bearer " + authToken);
 

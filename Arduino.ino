@@ -3,6 +3,9 @@
 #include <ArduinoJson.h>
 #include <NTPClient.h>
 #include <WiFiUdp.h>
+#include <AM2320_asukiaaa.h>
+
+AM2320_asukiaaa mySensor;
 
 const int lightPin = 35;  // 조도센서가 연결된 핀 번호
 
@@ -12,7 +15,7 @@ const char* password = "";  // Wi-Fi 비밀번호
 const char* user_id = "";
 const char* user_pw = "";
 
-const char* serverUrl = "http://localhost:8080/api/authenticate";    // 서버 URL
+const char* serverUrl = "";    // 서버 URL
 
 String Token = ""; // 전역 변수로 토큰 선언
 
@@ -40,25 +43,32 @@ void setup() {
   // NTP 클라이언트 초기화
   timeClient.begin();
 
+  // AM2320 센서 초기화
+  Wire.begin();
+  mySensor.setWire(&Wire);
+
   // 로그인 요청 보내기
   Token = loginRequest();
 
-  pinMode(lightPin, INPUT);  // 34번 핀을 디지털 입력으로 설정
+  pinMode(lightPin, INPUT);  // 35번 핀을 디지털 입력으로 설정
 
   // Sync time
   syncTime();
 }
 
 void loop() {
-  // 센서 데이터 수집
-  float airTemp = 456.456;
-  float airHumid = 456.456;
-  float soilHumid = 999.999;
-  float lightIntensity = analogRead(lightPin) / 1023.0 * 100.0;
-  bool status = true;
 
   // 현재 시간 가져오기
   timeClient.update();
+  // 온습도 센서 데이터 가져오기
+  mySensor.update();
+
+  // 센서 데이터 수집
+  float airTemp = mySensor.temperatureC;
+  float airHumid = mySensor.humidity;
+  float soilHumid = 999.999;
+  float lightIntensity = analogRead(lightPin) / 1023.0 * 100.0;
+  bool status = true;
 
   // 현재 시간을 Unix 타임스탬프로 가져오기
   time_t currentTime = timeClient.getEpochTime();
@@ -154,7 +164,7 @@ float lightIntensity, bool status, String date) {
   while(1)
   {
     // POST 요청 설정
-  http.begin("http://localhost:8080/api/post-sensor-data");
+  http.begin("");
   http.addHeader("Content-Type", "application/json");
   http.addHeader("Authorization", "Bearer " + authToken);
 

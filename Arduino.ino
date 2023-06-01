@@ -8,33 +8,48 @@
 AM2320_asukiaaa mySensor;
 
 const int lightPin = 35;  // 조도센서가 연결된 핀 번호
+const int SoilHumiPin = 34; //토양 습도 센서가 연결된 핀 번호
 
 const char* ssid = "";      // Wi-Fi 네트워크 이름
 const char* password = "";  // Wi-Fi 비밀번호
 
-const char* user_id = "";
-const char* user_pw = "";
+const char* user_id = ""; // 사용자 ID
+const char* user_pw = ""; // 사용자 PW
 
-const char* serverUrl = "";    // 서버 URL
+const char* serverUrl = "";  // 서버 URL
+
+const int redPin = 25;    // R 핀 번호
+const int greenPin = 26;  // G 핀 번호
+const int bluePin = 27;   // B 핀 번호
 
 String Token = ""; // 전역 변수로 토큰 선언
 
-WiFiUDP ntpUDP; //USP 소켓 생성
-NTPClient timeClient(ntpUDP, "pool.ntp.org"); //NTP 클라이언트 생성
+WiFiUDP ntpUDP; //UDP 소켓 생성
+NTPClient timeClient(ntpUDP, "pool.ntp.org");  //NTP 클라이언트 생성
 
 void setup() {
   Serial.begin(9600);
 
   // Wi-Fi 연결 시작
   WiFi.begin(ssid, password);
-
   Serial.print("Connecting to Wi-Fi");
 
   // Wi-Fi 연결 확인
-  while (WiFi.status() != WL_CONNECTED) {
+  while (WiFi.status() != WL_CONNECTED) 
+  {
     delay(500);
     Serial.print(".");
+
+    // Wi-Fi 연결이 되지 않았을 때 (빨간색)
+    analogWrite(redPin, 255);
+    analogWrite(greenPin, 0);
+    analogWrite(bluePin, 0); 
   }
+
+  // Wi-Fi 연결 성공 (파란색)
+  analogWrite(redPin, 0); 
+  analogWrite(greenPin, 0);
+  analogWrite(bluePin, 255); 
 
   Serial.println("");
   Serial.println("Wi-Fi connected");
@@ -50,7 +65,8 @@ void setup() {
   // 로그인 요청 보내기
   Token = loginRequest();
 
-  pinMode(lightPin, INPUT);  // 35번 핀을 디지털 입력으로 설정
+  pinMode(lightPin, INPUT);  //35번 핀을 디지털 입력으로 설정
+  pinMode(SoilHumiPin, INPUT);  //34번 핀을 디지털 입력으로 설정
 
   // Sync time
   syncTime();
@@ -60,13 +76,14 @@ void loop() {
 
   // 현재 시간 가져오기
   timeClient.update();
+
   // 온습도 센서 데이터 가져오기
   mySensor.update();
 
   // 센서 데이터 수집
   float airTemp = mySensor.temperatureC;
   float airHumid = mySensor.humidity;
-  float soilHumid = 999.999;
+  float soilHumid = analogRead(SoilHumiPin);
   float lightIntensity = analogRead(lightPin) / 1023.0 * 100.0;
   bool status = true;
 
@@ -113,7 +130,8 @@ String loginRequest() {
   int httpCode = http.POST(payload);
 
   // 응답 확인
-  if (httpCode > 0) {
+  if (httpCode > 0) 
+  {
     // 응답 받은 데이터 출력
     String jsonResponse = http.getString();
     Serial.println("HTTP response: " + jsonResponse);
@@ -123,11 +141,14 @@ String loginRequest() {
     DeserializationError error = deserializeJson(jsonDoc, jsonResponse);
 
     // JSON 파싱 오류 확인
-    if (error) {
+    if (error) 
+    {
       Serial.print("JSON parsing failed: ");
       Serial.println(error.c_str());
     }
-    else {
+
+    else 
+    {
        // 토큰 추출
       const char* jwtToken = jsonDoc["token"];
 
@@ -135,24 +156,36 @@ String loginRequest() {
       Serial.print("JWT token: ");
       Serial.println(jwtToken);
       http.end();
+
+      // 토큰 발급 성공 (초록색)
+      analogWrite(redPin, 0);
+      analogWrite(greenPin, 255);
+      analogWrite(bluePin, 0); 
+
+      // 발급된 토큰 반환
       return jwtToken;
     }
   }
-  else {
+  else 
+  {
     Serial.println("Error on HTTP request");
+
+    // 로그인 실패(주황색)
+    analogWrite(redPin, 255);
+    analogWrite(greenPin, 165);
+    analogWrite(bluePin, 0);
   }
 
   // HTTP 연결 닫기
   http.end();
 }
 
-
-//센서 데이터 삽입
+// 센서 데이터 삽입
 void sendSensorData(String authToken, float airTemp, float airHumid, float soilHumid, 
 float lightIntensity, bool status, String date) {
-  // HTTPClient 객체 생성
-  HTTPClient http;
-  int cnt = 0;
+  
+  HTTPClient http;   // HTTPClient 객체 생성
+  int cnt = 0;  // 로그인 재시도 횟수 저장
 
   // JSON 페이로드 생성
   String payload = "{\"airTemp\":" + String(airTemp, 3) +
@@ -164,48 +197,61 @@ float lightIntensity, bool status, String date) {
   while(1)
   {
     // POST 요청 설정
-  http.begin("");
-  http.addHeader("Content-Type", "application/json");
-  http.addHeader("Authorization", "Bearer " + authToken);
+    http.begin("");
+    http.addHeader("Content-Type", "application/json");
+    http.addHeader("Authorization", "Bearer " + authToken);
 
-  // 데이터 전송
-  int httpCode = http.POST(payload);
-  Serial.println(httpCode);
+    // 데이터 전송
+    int httpCode = http.POST(payload);
+    Serial.println(httpCode);
 
-  // 응답 확인
-  if (httpCode == 200) 
-  {
-    String response = http.getString();
-    Serial.println("HTTP response: " + response);
+    // 응답 확인
+    if (httpCode == 200) 
+    {
+      String response = http.getString();
+      Serial.println("HTTP response: " + response);
 
-    // HTTP 연결 닫기
-    http.end();
-    break;
-  }
+      // HTTP 연결 닫기
+      http.end();
+      break;
+    }
 
-  else if (cnt == 50)
-  {
-    //50회 반복후 탈출
-    Serial.println("Loigin Error");
-    // HTTP 연결 닫기
-    http.end();
-    break;
-  } 
+    else if (cnt == 50)
+    {
+      //50회 반복후 탈출
+      Serial.println("Loigin Error");
+      
+      // HTTP 연결 닫기
+      http.end();
+      
+      // 로그인 실패(노란색)
+      analogWrite(redPin, 255);   // Red ON
+      analogWrite(greenPin, 255); // Green ON
+      analogWrite(bluePin, 0);    // Blue OFF
+      break;
+    } 
 
-  else 
-  {
-    // 로그인 요청 보내기
-  loginRequest();
-  cnt = cnt + 1;
-  }
+    else 
+    {
+      // 로그인 재시도 요청 보내기
+      Token = loginRequest();
 
+      //로그인 시도 횟수 증가
+      cnt = cnt + 1;
+
+      // 로그인 재시도 요청 중 (보라색)
+      analogWrite(redPin, 255);   // Red ON
+      analogWrite(greenPin, 0);   // Green OFF
+      analogWrite(bluePin, 255);  // Blue ON
+    }
   }
 }
 
-//NTP서버와 시간 동기화
+// NTP서버와 시간 동기화
 void syncTime() {
   // Wait for Wi-Fi connection
-  while (!WiFi.isConnected()) {
+  while (!WiFi.isConnected()) 
+  {
     delay(500);
     Serial.print(".");
   }
@@ -213,18 +259,22 @@ void syncTime() {
   Serial.println("");
   Serial.println("Wi-Fi connected");
 
-  // Sync time with NTP server
-  while (!timeClient.update()) {
+  // 동기화된 시간 디바이스에 업데이트
+  while (!timeClient.update()) 
+  {
     timeClient.forceUpdate();
   }
 }
 
 // 10미만에 숫자에 대해서 앞에 0 붙여서 문자열 반환
 String formatDigits(int digits) {
-  // Add leading zero if needed
-  if (digits < 10) {
+
+  if (digits < 10) 
+  {
     return "0" + String(digits);
-  } else {
+  } 
+  else 
+  {
     return String(digits);
   }
 }

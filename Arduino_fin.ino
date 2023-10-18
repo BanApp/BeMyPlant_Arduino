@@ -241,7 +241,7 @@ void sendSensorData(String authToken, float airTemp, float airHumid, float soilH
   String payload = "{\"airTemp\":" + String(airTemp, 3) + ", \"airHumid\":" + String(airHumid, 3) + ", \"soilHumid\":" + String(soilHumid, 3) + ", \"lightIntensity\":" + String(lightIntensity, 3) + ", \"status\":" + String(status) + ", \"date\":\"" + date + "\"}";
   while (1) {
     // POST 요청 설정
-    http.begin("http://141.164.35.145:8080/api/post-sensor-data");
+    http.begin(""); //센서 데이터 삽입 링크
     http.addHeader("Content-Type", "application/json");
     http.addHeader("Authorization", "Bearer " + authToken);
 
